@@ -75,9 +75,7 @@ def error_distance(corners,x,y):
         return None,None
 #运动路径选择与误差计算
 def next_target_error(line_num,red_blobs,corners):
-    if line_num == 1:
-        one_error_x,one_error_y = error_distance(corners[0],red_blobs.cx(),red_blobs.cy())
-    elif line_num == 2:
+    if line_num == 2:
         one_error_x,one_error_y = error_distance(corners[1],red_blobs.cx(),red_blobs.cy())
     elif line_num == 3:
         one_error_x,one_error_y = error_distance(corners[2],red_blobs.cx(),red_blobs.cy())
@@ -88,7 +86,7 @@ def next_target_error(line_num,red_blobs,corners):
 def now_conditiont(blob, corners):
     for line_num, corner in enumerate(corners):
         if (abs(blob.cx() - corner[0]) < 5) and (abs(blob.cy() - corner[1]) < 5):
-            return line_num + 1
+            return line_num + 2
     return None  # 如果没有找到匹配的角落，返回 None
 
 
@@ -112,6 +110,7 @@ while(True):
     if start_flag == 1: 
         if red_blobs and rect:
             one_error_x,one_error_y = error_distance(corners[0],red_blobs.cx(),red_blobs.cy())
+            uart.write(str(abs(one_error_x)) + "," + str(abs(one_error_y)))  # 发送数据
             start_flag = 0
             print("开始任务")
     if red_blobs and rect:        
@@ -120,7 +119,11 @@ while(True):
             error_x,error_y = next_target_error(line_num,red_blobs,corners)# 计算激光点与下一目标顶点的误差
             uart.write(str(abs(error_x)) + "," + str(abs(error_y)))  # 发送数据
 
-    print("发送任务已完成")
+    print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
     print(clock.fps())
+
+#方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率
+
+#识别色块---识别矩形框---start_flag==1且识别都成功-----计算第一次误差（将激光点置位于矩形框上）---若识别都成功，判断当前激光位置---若位于四个顶点则计算下一次目标点的误差并发送数据---若不在四个顶点则继续执行下一次while()
