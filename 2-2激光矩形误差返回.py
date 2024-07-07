@@ -23,22 +23,29 @@ lcd.init(freq=15000000)
 uart = UART(3,115200)  
 uart.init(115200, bits=8, parity=None, stop=1 )
 
-def find_rect_corners(rect):
+def find_rect_corners(rect,img):
     for r in rect:
         img.draw_rectangle(r.rect(), color = (255, 0, 0))
         corners = change_condi(r.corners())
         for p in corners:  # 颠倒点的顺序
             img.draw_circle(p[0], p[1], 5, color = (0, 255, 0))
             print(corners)#打印顶点[(x1,y1),................]
-        return corners        
-def find_red_blobs(blobs):
-    red_blob = max(blobs,key=lambda b: b.pixels())#通过找最大滤波
-    print("x:%d,y:%d,w:%d,h:%d"%(red_blob.cx(),red_blob.cy(),red_blob.w(),red_blob.h()))
-    img.draw_rectangle(blob.rect())
-    print("红色像素数量：%d"%red_blob.pixels())
-    ## print(len(red_blobs))
-    # ##这里后面加个保护
-    return red_blob
+    return corners        
+def find_red_blobs(blobs, img):
+    if not blobs:
+        print("没有找到任何 blobs")
+        return None
+    
+    try:
+        red_blob = max(blobs, key=lambda b: b.pixels())
+        print("x:%d,y:%d,w:%d,h:%d" % (red_blob.cx(), red_blob.cy(), red_blob.w(), red_blob.h()))
+        img.draw_rectangle(red_blob.rect())
+        print("红色像素数量：%d" % red_blob.pixels())
+        return red_blob
+    except Exception as e:
+        print("发生错误: ", e)
+        return None
+    
 #使顶点数组顺时针
 def change_condi(corners_list):
     corners = [0,0,0,0]
@@ -46,17 +53,18 @@ def change_condi(corners_list):
     corners[1] = corners_list[-2]
     corners[2] = corners_list[-3]
     corners[3] = corners_list[-4]
-    return corners
+    if corners is not None:
+        return corners
 
 #求error_x error_y
-def error_distance(corners_list,x,y):
-    error_x = corners_list[0]-x
-    error_y = corners_list[1]-y
-    return error_x,error_y
+def error_distance(corners,x,y):
+    error_x = corners[0]-x
+    error_y = corners[1]-y
+    return error_x,error_y  ##？？？？
 
 #判断激光是否到达
 def reach_condi(corner_list,x,y):
-    if x < corner_list[0]+5 and x > corner_list[0]-5 and y > corner_list[1]-5 and y < corner_list[1]+5:
+    if x < corner_list[0]+5 or x > corner_list[0]-5 and y > corner_list[1]-5 or y < corner_list[1]+5:
         return True
     else:
         return False
@@ -64,12 +72,16 @@ def reach_condi(corner_list,x,y):
 while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
-    red_blob = img.find_blobs([red_thresholds],x_stride=5, y_stride=5, pixels_threshold=50)
-    if red_blob:
-        rect = img.find_rects(threshold = 10000)
+    red_blobs = img.find_blobs([red_thresholds],x_stride=5, y_stride=5, pixels_threshold=50)
+    if red_blobs:
+        red_blob = find_red_blobs(red_blobs,img)
     else:
         print("没找到色块")
-    corners = find_rect_corners(rect)#找顶点[(x1,y1),................]
+    rect = img.find_rects(threshold = 10000)
+    if rect:
+        corners = find_rect_corners(rect,img)#找顶点[(x1,y1),................]
+    else:
+        print("没找到矩形")
     #1.计算激光和顶点坐标的差距，串口返回下x,y的差距值
     #2.根据差距值，控制激光的位置，使其到达目标点
     #3.等待目标点到达，然后再次检查条件
@@ -78,12 +90,13 @@ while(True):
         while True:
             #第一次发送找到2矩形框
             error_x, error_y = error_distance(corners[i], red_blob.cx(), red_blob.cy())
-            uart.write(str(error_x) + "," + str(error_y))  # 发送数据
+            uart.write(str(abs(error_x)) + "," + str(abs(error_y)))  # 发送数据
 
             if reach_condi(corners[i], red_blob.cx(), red_blob.cy()):
                 break
             # 等待一段时间后再次检查条件
-            #time.sleep(0.1)  
+            #time.sleep(0.1)
+    print("发送任务已完成")
     fps = 'fps:'+str(clock.fps())
     img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
     print(clock.fps())
