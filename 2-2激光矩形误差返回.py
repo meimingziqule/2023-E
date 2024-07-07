@@ -4,12 +4,12 @@ from pyb import UART, LED,Pin, Timer
 light = Timer(2, freq=50000).channel(1, Timer.PWM, pin=Pin("P6"))
 light.pulse_width_percent(50) # 控制亮度 0~100
 
-red_thresholds = (32, 88, 7, 74, -6, 127)# 通用红色阈值
+red_thresholds = (95, 100, 0, 19, -6, 9)# 通用红色阈值
 green_thresholds = (0, 38, 0, 124, -128, 127)# 通用绿色阈值   待修改
 sensor.reset()                     
 sensor.set_pixformat(sensor.RGB565) 
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([300,0,200,600])  #roi 300,0,200,600
+sensor.set_windowing([408,125,377,355])  #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)    
@@ -72,7 +72,7 @@ def reach_condi(corner_list,x,y):
 while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
-    red_blobs = img.find_blobs([red_thresholds],x_stride=5, y_stride=5, pixels_threshold=50)
+    red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
     if red_blobs:
         red_blob = find_red_blobs(red_blobs,img)
     else:
@@ -89,11 +89,12 @@ while(True):
         # 当 reach_condi 条件满足时，执行以下代码
         while True:
             #第一次发送找到2矩形框
-            error_x, error_y = error_distance(corners[i], red_blob.cx(), red_blob.cy())
-            uart.write(str(abs(error_x)) + "," + str(abs(error_y)))  # 发送数据
-
-            if reach_condi(corners[i], red_blob.cx(), red_blob.cy()):
-                break
+            if corners and red_blobs:
+                error_x, error_y = error_distance(corners[i], red_blob.cx(), red_blob.cy())
+                uart.write(str(abs(error_x)) + "," + str(abs(error_y)))  # 发送数据
+            if corners and red_blobs:
+                if reach_condi(corners[i], red_blob.cx(), red_blob.cy()):
+                    break
             # 等待一段时间后再次检查条件
             #time.sleep(0.1)
     print("发送任务已完成")
