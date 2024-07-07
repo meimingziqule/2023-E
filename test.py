@@ -23,6 +23,15 @@ lcd.init(freq=15000000)
 uart = UART(3,115200)  
 uart.init(115200, bits=8, parity=None, stop=1 )
 
+start_flag = 1
+line_num  = 0
+one_error_x = 0
+one_error_y = 0
+error_x = 0
+error_y = 0
+
+
+
 def find_rect_corners(rect,img):
     for r in rect:
         img.draw_rectangle(r.rect(), color = (255, 0, 0))
@@ -55,12 +64,29 @@ def change_condi(corners_list):
     corners[3] = corners_list[-4]
     if corners is not None:
         return corners
-
+#计算误差
 #求error_x error_y
 def error_distance(corners,x,y):
     error_x = corners[0]-x
     error_y = corners[1]-y
     return error_x,error_y  ##？？？？
+#运动路径选择
+def next_target_error(line_num,red_blobs,corners):
+    if line_num == 1:
+        one_error_x,one_error_y = error_distance(corners[0],red_blobs.cx(),red_blobs.cy())
+    elif line_num == 2:
+        one_error_x,one_error_y = error_distance(corners[1],red_blobs.cx(),red_blobs.cy())
+    elif line_num == 3:
+        one_error_x,one_error_y = error_distance(corners[2],red_blobs.cx(),red_blobs.cy())
+    elif line_num == 4:
+        one_error_x,one_error_y = error_distance(corners[3],red_blobs.cx(),red_blobs.cy())
+    return one_error_x,one_error_y
+#判断下一次该发送哪个次顶点
+def now_conditiont(blob, corners):
+    for line_num, corner in enumerate(corners):
+        if (abs(blob.cx() - corner[0]) < 5) and (abs(blob.cy() - corner[1]) < 5):
+            return line_num + 1
+    return None  # 如果没有找到匹配的角落，返回 None
 
 #判断激光是否到达
 def reach_condi(corner_list,x,y):
@@ -85,17 +111,16 @@ while(True):
     #1.计算激光和顶点坐标的差距，串口返回下x,y的差距值
     #2.根据差距值，控制激光的位置，使其到达目标点
     #3.等待目标点到达，然后再次检查条件
-    for i in range(4):
-        # 当 reach_condi 条件满足时，执行以下代码
-        while True:
-            #第一次发送找到2矩形框
-            error_x, error_y = error_distance(corners[i], red_blob.cx(), red_blob.cy())
-            uart.write(str(abs(error_x)) + "," + str(abs(error_y)))  # 发送数据
+    if start_flag == 1: 
+        if red_blobs and rect:
+            one_error_x,one_error_y = error_distance(corners[0],red_blobs.cx(),red_blobs.cy())
+            start_flag = 0
+            print("开始任务")
+    if red_blobs and rect:        
+        line_num  = now_conditiont(red_blob,corners)#判断当前激光点位置
+        error_x,error_y = next_target_error(line_num,red_blobs,corners)# 计算激光点与下一目标顶点的误差
+        uart.write(str(abs(error_x)) + "," + str(abs(error_y)))  # 发送数据
 
-            if reach_condi(corners[i], red_blob.cx(), red_blob.cy()):
-                break
-            # 等待一段时间后再次检查条件
-            #time.sleep(0.1)
     print("发送任务已完成")
     fps = 'fps:'+str(clock.fps())
     img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
