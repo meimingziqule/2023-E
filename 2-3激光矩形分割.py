@@ -30,9 +30,60 @@ one_error_y = 0
 error_x = 0
 error_y = 0
 
+red_blob = None
+
 rect_flag  = 1
+rect_points = []
+rect_points_flag = 1
+send_data = None
+#线段分割函数
+def divide_line_segment(point1, point2, n):
+    """
+    将两个点连成的线段平分成n份，并返回包含这些点的数组。
 
+    参数:
+    point1 (tuple): 第一个点的坐标 (x1, y1)
+    point2 (tuple): 第二个点的坐标 (x2, y2)
+    n (int): 要平分的份数
 
+    返回:
+    list: 包含所有点的数组，例如[(x1, y1), (x2, y2), ...]
+    """
+    if n < 1:
+        raise ValueError("n必须大于等于1")
+
+    x1, y1 = point1
+    x2, y2 = point2
+
+    points = []
+    for i in range(n + 1):
+        x = x1 + (x2 - x1) * i / n
+        y = y1 + (y2 - y1) * i / n
+        points.append((x, y))
+
+    return points
+
+#矩形分割函数
+def divide_polygon_segments(points, n):
+    """
+    将一个四边形的每条边平分成n份，并将所有结果拼接成一个新的列表。
+
+    参数:
+    points (list): 包含四个点的列表，例如[(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
+    n (int): 要平分的份数
+
+    返回:
+    list: 包含所有点的数组，例如[(x1, y1), (x2, y2), ..., (x4, y4), ...]
+    """
+    if len(points) != 4:
+        raise ValueError("points列表必须包含四个点")
+
+    result = []
+    for i in range(4):
+        segment_points = divide_line_segment(points[i], points[(i + 1) % 4], n)
+        result.extend(segment_points)
+
+    return result
 
 def find_rect_corners(rect,img):
     for r in rect:
@@ -77,14 +128,7 @@ def error_distance(corners,x,y):
         return None,None
 #运动路径选择与误差计算
 def next_target_error(line_num,red_blobs,corners):
-    if line_num == 1:
-        one_error_x,one_error_y = error_distance(corners[0],red_blobs.cx(),red_blobs.cy())   
-    elif line_num == 2:
-        one_error_x,one_error_y = error_distance(corners[1],red_blobs.cx(),red_blobs.cy())
-    elif line_num == 3:
-        one_error_x,one_error_y = error_distance(corners[2],red_blobs.cx(),red_blobs.cy())
-    elif line_num == 4:
-        one_error_x,one_error_y = error_distance(corners[3],red_blobs.cx(),red_blobs.cy())
+    one_error_x,one_error_y = error_distance(corners[line_num-1],red_blobs.cx(),red_blobs.cy())
     return one_error_x,one_error_y
 #判断下一次该发送哪个顶点
 def now_conditiont(blob, corners):
@@ -115,9 +159,17 @@ while(True):
     else:
         print(corners)
         img.draw_rectangle(rect[0].rect(), color = (255, 0, 0))
-
-    
-        
+    if rect_points_flag == 1:
+        if red_blobs and rect:
+            rect_points = divide_polygon_segments(corners, 5)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+            rect_points_flag = 0 #只计算一次
+    if rect_points is not None and red_blobs is not None:
+        for i in range(len(rect_points)):
+            red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
+            if red_blobs:
+                red_blob = find_max_red_blobs(red_blobs,img)
+            send_data = '#0x00'+'X'+str(rect_points[i][0])+'Y'+str(rect_points[i][1])+'X'+str(red_blob.cx())+'Y'+str(red_blob.cy())+';'
+            uart.write(send_data)
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
