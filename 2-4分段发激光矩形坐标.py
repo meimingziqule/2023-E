@@ -30,6 +30,7 @@ one_error_y = 0
 error_x = 0
 error_y = 0
 
+task_flag = 0
 red_blob = None
 i=0
 rect_flag  = 1
