@@ -15,7 +15,7 @@ sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
 sensor.set_auto_gain(False)
 sensor.set_auto_whitebal(False)
-sensor.set_auto_exposure(False,12000)#设置感光度
+sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
 
 clock = time.clock()
 red_blobs = 0
@@ -100,7 +100,7 @@ def find_max_red_blobs(blobs, img):
 
     try:
         red_blob = max(blobs, key=lambda b: b.pixels())
-        print("x:%d,y:%d,w:%d,h:%d" % (red_blob.cx(), red_blob.cy(), red_blob.w(), red_blob.h()))
+        #print("x:%d,y:%d,w:%d,h:%d" % (red_blob.cx(), red_blob.cy(), red_blob.w(), red_blob.h()))
         img.draw_cross(red_blob.cx(),red_blob.cy())
         print("红色像素数量：%d" % red_blob.pixels())
         return red_blob
@@ -142,11 +142,7 @@ def now_conditiont(blob, corners):
 while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
-    red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
-    if red_blobs:
-        red_blob = find_max_red_blobs(red_blobs,img)
-    else:
-        print("没找到色块")
+
     #识别矩形
     if rect_flag ==1:
         rect = img.find_rects(threshold = 10000)
@@ -157,19 +153,27 @@ while(True):
         else:
             print("没找到矩形")
     else:
-        print(corners)
-        img.draw_rectangle(rect[0].rect(), color = (255, 0, 0))
+        print("corner:",corners)
+        img.draw_rectangle(rect[0].rect(), color = (255, 255, 255))
+    print("rect_points_flag",rect_points_flag)
     if rect_points_flag == 1:
-        if red_blobs and rect:
-            rect_points = divide_polygon_segments(corners, 5)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+        if rect:
+            rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
             rect_points_flag = 0 #只计算一次
-    if rect_points is not None and red_blobs is not None:
+            print("rect_point:",rect_points)        
+    if rect_points is not None:
         for i in range(len(rect_points)):
             red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
             if red_blobs:
                 red_blob = find_max_red_blobs(red_blobs,img)
-            send_data = '#0x00'+'X'+str(rect_points[i][0])+'Y'+str(rect_points[i][1])+'X'+str(red_blob.cx())+'Y'+str(red_blob.cy())+';'
-            uart.write(send_data)
+                print('找到了色块')
+                print("red_blobs,X:%s,Y:%s"%(red_blob.cx(),red_blob.cy()))
+                img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))
+                send_data = '#0x00'+'X'+str(rect_points[i][0])+'Y'+str(rect_points[i][1])+'X'+str(red_blob.cx())+'Y'+str(red_blob.cy())+';'
+                print(send_data)
+                uart.write(send_data)
+            else:
+                pass
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
