@@ -9,13 +9,13 @@ green_thresholds = (0, 38, 0, 124, -128, 127)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([327,187,317,320])  #roi 300,0,200,600
+sensor.set_windowing([274,185,332,337])  #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
 sensor.set_auto_gain(False)
 sensor.set_auto_whitebal(False)
-sensor.set_auto_exposure(False,12000)#设置感光度
+sensor.set_auto_exposure(False,30000)#设置感光度
 
 clock = time.clock()
 red_blobs = 0
@@ -116,7 +116,7 @@ while(True):
         print(corners)
         img.draw_rectangle(rect[0].rect(), color = (255, 0, 0))
     if start_flag ==1:
-        if corners and red_blobs:
+        if rect and red_blobs:
             one_error_x,one_error_y=next_target_error(1,red_blob,corners)#
             print("发出找第一个顶点任务的指令")
             if one_error_x is not None and one_error_y is not None:
