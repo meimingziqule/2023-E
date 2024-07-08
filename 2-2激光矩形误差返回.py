@@ -9,7 +9,7 @@ green_thresholds = (0, 38, 0, 124, -128, 127)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([274,185,332,337])  #roi 300,0,200,600
+sensor.set_windowing([284,185,332,337])  #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
