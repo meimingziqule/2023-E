@@ -77,7 +77,9 @@ def error_distance(corners,x,y):
         return None,None
 #运动路径选择与误差计算
 def next_target_error(line_num,red_blobs,corners):
-    if line_num == 2:
+    if line_num == 1:
+        one_error_x,one_error_y = error_distance(corners[0],red_blobs.cx(),red_blobs.cy())   
+    elif line_num == 2:
         one_error_x,one_error_y = error_distance(corners[1],red_blobs.cx(),red_blobs.cy())
     elif line_num == 3:
         one_error_x,one_error_y = error_distance(corners[2],red_blobs.cx(),red_blobs.cy())
@@ -113,24 +115,34 @@ while(True):
     else:
         print(corners)
         img.draw_rectangle(rect[0].rect(), color = (255, 0, 0))
-
-    if corners and red_blob:#只有色块和矩形都识别成功才开始计算误差
-        line_num = now_conditiont(red_blob, corners)
-        if line_num is not None:
-            error_x,error_y = next_target_error(line_num,red_blob,corners)
-            print("line_num:",line_num)
-            print("error_x:",error_x)
-            print("error_y:",error_y)
-            if error_x is not None and error_y is not None:###发送数据
-                uart.write(str(line_num)+","+str(error_x)+","+str(error_y))#发送数据
+    if start_flag ==1:
+        if corners and red_blob:
+            one_error_x,one_error_y=next_target_error(1,red_blobs,corners)#
+            print("发出找第一个顶点任务的指令")
+            if one_error_x is not None and one_error_y is not None:
+                uart.write(str(1)+","+str(one_error_x)+","+str(one_error_y))#发送数据
                 print("发送数据")
+                start_flag =0 #开启其他三个顶点的任务
             else:
-                print("误差计算出错")
-            #if line_num == 1:
-                #pass  ###这里可以加个延时
+                print("第一次误差计算出错")
+    else:            
+        if corners and red_blob:#只有色块和矩形都识别成功才开始计算误差
+            line_num = now_conditiont(red_blob, corners)
+            if line_num is not None:
+                error_x,error_y = next_target_error(line_num,red_blob,corners)
+                print("line_num:",line_num)
+                print("error_x:",error_x)
+                print("error_y:",error_y)
+                if error_x is not None and error_y is not None:###发送数据
+                    uart.write(str(line_num)+","+str(error_x)+","+str(error_y))#发送数据
+                    print("发送数据")
+                else:
+                    print("误差计算出错")
+                #if line_num == 1:
+                    #pass  ###这里可以加个延时
 
-        else:
-            print("目前没找到匹配的顶点")
+            else:
+                print("目前还处于第一顶点附近")
         
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
