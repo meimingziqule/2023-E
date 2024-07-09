@@ -9,7 +9,7 @@ green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([348,176,350,346]) #roi 300,0,200,600
+sensor.set_windowing([370,176,335,346]) #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
@@ -38,8 +38,10 @@ rect_points = []
 rect_points_flag = 1
 send_data = None
 
-
-rect_point_num = 0 
+buffer = None
+data = 0
+data_decoded  = 0
+rect_point_num = 0
 frame_head = '#'
 frame_tail = ';'
 first_recieve_flag = 1
@@ -50,6 +52,20 @@ baoguang_step = 1500
 sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
 auto_exposure_flag = True
 auto_exposure_first = True
+
+def receive_data():
+    buffer = ""
+    while True:
+        if uart.any():
+            char = uart.read(1).decode()
+            if char == '#':
+                buffer = ""  # 清空缓冲区，准备接收新数据
+            elif char == ';':
+                return buffer  # 返回接收到的数据
+            else:
+                buffer += char  # 将字符添加到缓冲区
+
+
 #线段分割函数
 def divide_line_segment(point1, point2, n):
     """
@@ -157,6 +173,7 @@ while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
     # 计算图像的直方图
+    uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
@@ -165,7 +182,7 @@ while(True):
         red_blob = find_max_red_blobs(red_blobs,img)
         print('找到了色块')
         print("red_blobs,X:%s,Y:%s"%(red_blob.cx(),red_blob.cy()))
-        img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))    
+        img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))
     #识别矩形
     if rect_flag ==1:
         rect = img.find_rects(threshold = 10000)
@@ -185,9 +202,10 @@ while(True):
         if rect:
             rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
             rect_points_flag = 0 #只计算一次
-            print("rect_point:",rect_points)  
-    #如果接收到了坐标发送信号且矩形识别完成                  
-    data = uart.read()#接收   histogram = img.histogram()
+            print("rect_point:",rect_points)
+    #如果接收到了坐标发送信号且矩形识别完成
+       
+    histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     #print(histogram_statistics)
 
@@ -196,7 +214,7 @@ while(True):
             img = sensor.snapshot()
             # 计算图像的直方图
             histogram = img.histogram()
-            histogram_statistics = histogram.get_statistics()    
+            histogram_statistics = histogram.get_statistics()
             # 计算图像的直方图
             histogram = img.histogram()
             histogram_statistics = histogram.get_statistics()
@@ -206,24 +224,25 @@ while(True):
                 print("mode 值:", mode_value)
             else:
                 print("histogram_statistics 对象没有 mode 方法")
-        
+
             if mode_value > 40:
                 baoguang -= baoguang_step
                 sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
                 print("亮度减小")
-    
+
             elif mode_value < 30:
-                baoguang += baoguang_step 
+                baoguang += baoguang_step
                 sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
                 print("亮度增大")
             else:
                 auto_exposure_first = False
-    print("调节已结束")           
+    print("调节已结束")
+    data = receive_data()
     if data and rect_points_flag == 0:
         data_decoded = data.decode('utf-8')#解码
         if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾 为 #a:
             task_flag = data_decoded[1]
-            if task_flag == 'a':
+            if task_flag == 'A':
                 if first_recieve_flag ==1:#区分第一次和后面的
                     rect_point_num = 0
                     first_recieve_flag =0
@@ -235,7 +254,7 @@ while(True):
                         send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
                         print(send_data)
                         uart.write(send_data)
-                       
+
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
