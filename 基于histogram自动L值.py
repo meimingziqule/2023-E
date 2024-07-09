@@ -4,7 +4,7 @@ import time
 
 # 初始化摄像头传感器
 sensor.reset()
-sensor.set_pixformat(sensor.GRAYSCALE)  # 设置为灰度图像格式
+sensor.set_pixformat(sensor.RGB565)  # 设置为灰度图像格式
 sensor.set_framesize(sensor.SVGA)
 baoguang = 10000
 baoguang_step = 2000
