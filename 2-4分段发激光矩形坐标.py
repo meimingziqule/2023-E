@@ -5,7 +5,7 @@ from pyb import UART, LED,Pin, Timer
 #light.pulse_width_percent(50) # 控制亮度 0~100
 
 red_thresholds = (0, 100, 18, 118, -19, 127)# 通用红色阈值
-green_thresholds = (0, 38, 0, 124, -128, 127)# 通用绿色阈值   待修改
+green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
