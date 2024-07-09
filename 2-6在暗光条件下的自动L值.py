@@ -219,7 +219,7 @@ while(True):
             else:
                 auto_exposure_first = False
     print("调节已结束")           
-    if data and rect_point_flag == 0:
+    if data and rect_points_flag == 0:
         data_decoded = data.decode('utf-8')#解码
         if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾 为 #a:
             task_flag = data_decoded[1]
