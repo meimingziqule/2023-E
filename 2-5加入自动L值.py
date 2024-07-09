@@ -15,7 +15,7 @@ sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
 sensor.set_auto_gain(False)
 sensor.set_auto_whitebal(False)
-sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
+#sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
 
 clock = time.clock()
 red_blobs = 0
@@ -43,6 +43,13 @@ rect_point_num = 0
 frame_head = '#'
 frame_tail = ';'
 first_recieve_flag = 1
+
+l_value= 60
+baoguang = 40000
+baoguang_step = 3000
+sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
+auto_exposure_flag = True
+auto_exposure_first = True
 #线段分割函数
 def divide_line_segment(point1, point2, n):
     """
@@ -149,6 +156,9 @@ def now_conditiont(blob, corners):
 while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
+    # 计算图像的直方图
+    histogram = img.histogram()
+    histogram_statistics = histogram.get_statistics()
     red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
     #识别色块
     if red_blobs:
@@ -169,6 +179,7 @@ while(True):
         print("corner:",corners)
         img.draw_rectangle(rect[0].rect(), color = (255, 255, 255))
     print("rect_points_flag",rect_points_flag)
+
     #识别一次矩形
     if rect_points_flag == 1:
         if rect:
@@ -176,7 +187,38 @@ while(True):
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)  
     #如果接收到了坐标发送信号且矩形识别完成                  
-    data = uart.read()#接收
+    data = uart.read()#接收   histogram = img.histogram()
+    histogram_statistics = histogram.get_statistics()
+    #print(histogram_statistics)
+
+    if auto_exposure_first:
+        for i in range(20):
+            img = sensor.snapshot()
+            # 计算图像的直方图
+            histogram = img.histogram()
+            histogram_statistics = histogram.get_statistics()    
+            # 计算图像的直方图
+            histogram = img.histogram()
+            histogram_statistics = histogram.get_statistics()
+            # 提取 mode 值
+            if hasattr(histogram_statistics, "mode"):
+                mode_value = histogram_statistics.mode()  # 调用 mode 方法
+                print("mode 值:", mode_value)
+            else:
+                print("histogram_statistics 对象没有 mode 方法")
+        
+            if mode_value > 80:
+                baoguang -= baoguang_step
+                sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
+                print("亮度减小")
+    
+            elif mode_value < 60:
+                baoguang += baoguang_step 
+                sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
+                print("亮度增大")
+            else:
+                auto_exposure_first = False
+    print("调节已结束")           
     if data and rect_point_flag == 0:
         data_decoded = data.decode('utf-8')#解码
         if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾
