@@ -229,12 +229,12 @@ while(True):
                     first_recieve_flag =0
                 else:
                     rect_point_num += 1
-                print("rect_point_num",rect_point_num)
-                print("task_flag:",task_flag)
-                if rect_points is not None and red_blobs is not None:
-                    send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
-                    print(send_data)
-                    uart.write(send_data)
+                    print("rect_point_num",rect_point_num)
+                    print("task_flag:",task_flag)
+                    if rect_points is not None and red_blobs is not None:
+                        send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+                        print(send_data)
+                        uart.write(send_data)
                        
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
