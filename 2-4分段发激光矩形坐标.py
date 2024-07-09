@@ -43,6 +43,14 @@ rect_point_num = 0
 frame_head = '#'
 frame_tail = ';'
 first_recieve_flag = 1
+
+red_blobs =None
+rect = None
+corners = None
+rect_points = None
+
+
+
 #线段分割函数
 def divide_line_segment(point1, point2, n):
     """
@@ -91,7 +99,7 @@ def divide_polygon_segments(points, n):
         result.extend(segment_points)
 
     return result
-
+#找矩形顶点
 def find_rect_corners(rect,img):
     for r in rect:
         #img.draw_rectangle(r.rect(), color = (255, 0, 0))
@@ -169,7 +177,7 @@ while(True):
         print("corner:",corners)
         img.draw_rectangle(rect[0].rect(), color = (255, 255, 255))
     print("rect_points_flag",rect_points_flag)
-    #识别一次矩形
+    #矩形分割一次
     if rect_points_flag == 1:
         if rect:
             rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
@@ -177,7 +185,7 @@ while(True):
             print("rect_point:",rect_points)  
     #如果接收到了坐标发送信号且矩形识别完成                  
     data = uart.read()#接收
-    if data and rect_point_flag == 0:
+    if red_blobs and data and rect_points_flag == 0:
         data_decoded = data.decode('utf-8')#解码
         if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾
             task_flag = data_decoded[1]
@@ -199,6 +207,5 @@ while(True):
     #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
     print(clock.fps())
 
-#方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率
 
-#识别色块---识别矩形框---start_flag==1且识别都成功-----计算第一次误差（将激光点置位于矩形框上）---若识别都成功，判断当前激光位置---若位于四个顶点则计算下一次目标点的误差并发送数据---若不在四个顶点则继续执行下一次while()
+
