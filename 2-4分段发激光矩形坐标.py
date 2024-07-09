@@ -9,7 +9,7 @@ green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([327,187,317,320])  #roi 300,0,200,600
+sensor.set_windowing([294,184,333,338]) #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
@@ -166,7 +166,7 @@ while(True):
         img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))    
     #识别矩形
     if rect_flag ==1:
-        rect = img.find_rects(threshold = 10000)
+        rect = img.find_rects(threshold = 18000)
         if rect:
             corners = find_rect_corners(rect,img)#找顶点[(x1,y1),................]
             if corners:
