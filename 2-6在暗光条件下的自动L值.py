@@ -9,7 +9,7 @@ green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([294,184,333,338]) #roi 300,0,200,600
+sensor.set_windowing([348,176,350,346]) #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
@@ -221,9 +221,9 @@ while(True):
     print("调节已结束")           
     if data and rect_point_flag == 0:
         data_decoded = data.decode('utf-8')#解码
-        if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾
+        if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾 为 #a:
             task_flag = data_decoded[1]
-            if task_flag == '1':
+            if task_flag == 'a':
                 if first_recieve_flag ==1:#区分第一次和后面的
                     rect_point_num = 0
                     first_recieve_flag =0
@@ -232,7 +232,7 @@ while(True):
                 print("rect_point_num",rect_point_num)
                 print("task_flag:",task_flag)
                 if rect_points is not None and red_blobs is not None:
-                    send_data = '#0x00'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+                    send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
                     print(send_data)
                     uart.write(send_data)
                        
@@ -243,4 +243,4 @@ while(True):
 
 #方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率
 
-#识别色块---识别矩形框---start_flag==1且识别都成功-----计算第一次误差（将激光点置位于矩形框上）---若识别都成功，判断当前激光位置---若位于四个顶点则计算下一次目标点的误差并发送数据---若不在四个顶点则继续执行下一次while()
+
