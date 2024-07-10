@@ -228,7 +228,7 @@ while(True):
                 print("亮度增大")
             else:
                 auto_exposure_first = False
-    print("调节已结束")
+                print("调节已结束")
     #data = receive_data()
     print(rect_points)
     if value == 0: ##条件换成按键
@@ -242,7 +242,7 @@ while(True):
                 if(red_blob.cy() + blob_range > rect_points[rect_point_num][1] or red_blob.cy() - blob_range < rect_points[rect_point_num][1] - blob_range):  
                     rect_point_num += 1
                     print("到达")
-                    pyb.delay(500)
+                    pyb.delay(100)
                     if rect_point_num == len(rect_points)-1:
                            rect_point_num = len(rect_points)-1
                            
