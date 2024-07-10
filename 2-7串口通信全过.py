@@ -211,6 +211,7 @@ while True:
     clock.tick()                    # Update the FPS clock.
     
     img = sensor.snapshot()         # Take a picture and return the image.
+    red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=5)
     #识别色块
     if red_blobs:
         red_blob = find_max_red_blobs(red_blobs,img)
