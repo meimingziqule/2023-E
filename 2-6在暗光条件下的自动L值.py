@@ -34,7 +34,7 @@ task_flag = 0
 red_blob = None
 i=0
 rect_flag  = 1
-rect_points = []
+rect_points = [ ]
 rect_points_flag = 1
 send_data = None
 
@@ -53,22 +53,7 @@ sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
 auto_exposure_flag = True
 auto_exposure_first = True
 
-def receive_data():
-    buffer = ""
-    while True:
-        if uart.any():
-            char = uart.read(1).decode()
-            if char == '#':
-                buffer = ""  # 清空缓冲区，准备接收新数据
-            elif char == ';':
-                return buffer  # 返回接收到的数据
-            else:
-                buffer += char  # 将字符添加到缓冲区
-        else:
-            time.sleep_ms(10)  # 如果没有数据，短暂等待
-
-
-
+blob_range = 10
 #线段分割函数
 def divide_line_segment(point1, point2, n):
     """
@@ -175,8 +160,12 @@ def now_conditiont(blob, corners):
 while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
+    #按键
+    p_in = Pin('P0', Pin.IN, Pin.PULL_UP)#设置p_in为输入引脚，并开启上拉电阻
+    value = p_in.value() # get value, 0 or 1#读入p_in引脚的值
+    pyb.delay(100)#出问题先找这里
     # 计算图像的直方图
-    #uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
+    #value = 0
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=5)
@@ -203,7 +192,7 @@ while(True):
     #识别一次矩形
     if rect_points_flag == 1:
         if rect:
-            rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+            rect_points = divide_polygon_segments(corners, 3)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
@@ -240,23 +229,35 @@ while(True):
             else:
                 auto_exposure_first = False
     print("调节已结束")
-    data = receive_data()
-    if data=='B' and rect_points_flag == 0:
+    #data = receive_data()
+    print(rect_points)
+    if value == 0: ##条件换成按键
         still_send_flag = 1
+    if rect_points_flag is not None and red_blobs is not None:
         
-    elif data == 'A' and rect_points_flag == 0:
-        rect_point_num += 1
-        data = 0
-    else:
-        print('等待接收数据')
+        if rect_point_num < len(rect_points):
+            
+            if (red_blob.cx() + blob_range > rect_points[rect_point_num][0] or red_blob.cx() - blob_range < rect_points[rect_point_num][0] - blob_range):
+                
+                if(red_blob.cy() + blob_range > rect_points[rect_point_num][1] or red_blob.cy() - blob_range < rect_points[rect_point_num][1] - blob_range):  
+                    rect_point_num += 1
+                    print("到达")
+                    pyb.delay(500)
+                    if rect_point_num == len(rect_points)-1:
+                           rect_point_num = len(rect_points)-1
+                           
+                else:
+                    print('未到达')
 
     if still_send_flag ==1:    #持续发送坐标
         if rect_points is not None and red_blobs is not None:
-            send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
-            print(send_data)
-            uart.write(send_data)
-       
-    print("一次任务结束")
+            if rect_point_num < len(rect_points):
+                send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+                print(send_data)
+                uart.write(send_data)
+        else:
+            print("没有找到矩形或色块")
+    #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
     print(clock.fps())
