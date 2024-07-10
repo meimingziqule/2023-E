@@ -1,14 +1,9 @@
-'''
-
-使用之前先修改串口部分的数据
-
-'''
-
 import sensor, image, time, pyb,math,lcd
 from pyb import UART, LED,Pin, Timer
 # 50kHz pin6 timer2 channel1
 #light = Timer(2, freq=50000).channel(1, Timer.PWM, pin=Pin("P6"))
 #light.pulse_width_percent(50) # 控制亮度 0~100
+from pyb import LED
 
 red_thresholds = (0, 100, 8, 89, -3, 65)# 通用红色阈值
 green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
@@ -237,7 +232,11 @@ while True:
         if rect:
             rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
             rect_points_flag = 0 #只计算一次
-            print("rect_point:",rect_points)
+            rect_points_four = [rect_points[0],rect_points[2],rect_points[6],rect_points[8],rect_points[0]]
+    if rect:
+    #如果接收到了坐标发送信号且矩形识别完成
+        print("rect_points_four",rect_points_four)            
+           
     #如果接收到了坐标发送信号且矩形识别完成
 
     histogram = img.histogram()
@@ -276,24 +275,24 @@ while True:
 
     if data=='B' and rect_points_flag == 0:
         still_send_flag = 1
+        LED(3).on()
         
     elif data == 'A' and rect_points_flag == 0:
         rect_point_num += 1
         data = 0
-        print("111312312222221122222222222222222222222222222222222222222222222222222222222222")
     else:
         print('等待接收数据')
     if still_send_flag ==1:    #持续发送坐标
         print("still_send_flag",still_send_flag)
-        if rect_points is not None and red_blobs is not None:
-            #send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+        if rect_points_four is not None and red_blobs is not None:
+            send_data = '#0'+'X'+str(rect_points_four[rect_point_num][0])+'Y'+str(rect_points_four[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
             print(send_data)
             print('1111111111')
-            #uart.write(send_data)
+            uart.write(send_data)
        
     #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
-    #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
-   # print(clock.fps())
+    img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
+    print(clock.fps())
 
 #方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率
