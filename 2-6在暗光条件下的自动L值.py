@@ -16,7 +16,7 @@ sensor.skip_frames(time = 2000)
 sensor.set_auto_gain(False)
 sensor.set_auto_whitebal(False)
 #sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
-
+still_send_flag = 0
 clock = time.clock()
 red_blobs = 0
 lcd.init(freq=15000000)
@@ -179,7 +179,7 @@ while(True):
     #uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
-    red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
+    red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=5)
     #识别色块
     if red_blobs:
         red_blob = find_max_red_blobs(red_blobs,img)
@@ -188,7 +188,7 @@ while(True):
         img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))
     #识别矩形
     if rect_flag ==1:
-        rect = img.find_rects(threshold = 10000)
+        rect = img.find_rects(threshold = 17000)
         if rect:
             corners = find_rect_corners(rect,img)#找顶点[(x1,y1),................]
             if corners:
@@ -207,7 +207,7 @@ while(True):
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
-       
+
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     #print(histogram_statistics)
@@ -241,20 +241,21 @@ while(True):
                 auto_exposure_first = False
     print("调节已结束")
     data = receive_data()
-    if data and rect_points_flag == 0:  
-        if first_recieve_flag ==1:#区分第一次和后面的
-            rect_point_num = 0
-            first_recieve_flag =0
-        else:
-            rect_point_num += 1
-            print("rect_point_num",rect_point_num)
-            print("task_flag:",task_flag)
-            if rect_points is not None and red_blobs is not None:
-                send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
-                print(send_data)
-                data = 0
-                uart.write(send_data)
+    if data=='B' and rect_points_flag == 0:
+        still_send_flag = 1
+        
+    elif data == 'A' and rect_points_flag == 0:
+        rect_point_num += 1
+        data = 0
+    else:
+        print('等待接收数据')
 
+    if still_send_flag ==1:    #持续发送坐标
+        if rect_points is not None and red_blobs is not None:
+            send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+            print(send_data)
+            uart.write(send_data)
+       
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
