@@ -64,6 +64,9 @@ def receive_data():
                 return buffer  # 返回接收到的数据
             else:
                 buffer += char  # 将字符添加到缓冲区
+        else:
+            time.sleep_ms(10)  # 如果没有数据，短暂等待
+
 
 
 #线段分割函数
@@ -77,7 +80,7 @@ def divide_line_segment(point1, point2, n):
     n (int): 要平分的份数
 
     返回:
-    list: 包含所有点的数组，例如[(x1, y1), (x2, y2), ...]
+    list: 包含所有点的数组，例如[(x1, y1), (x2, y2), ...]CC
     """
     if n < 1:
         raise ValueError("n必须大于等于1")
@@ -173,7 +176,7 @@ while(True):
     clock.tick()                    # Update the FPS clock.
     img = sensor.snapshot()         # Take a picture and return the image.
     # 计算图像的直方图
-    uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
+    #uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=1)
@@ -238,22 +241,19 @@ while(True):
                 auto_exposure_first = False
     print("调节已结束")
     data = receive_data()
-    if data and rect_points_flag == 0:
-        data_decoded = data.decode('utf-8')#解码
-        if data_decoded[0] == frame_head and data_decoded[2] == frame_tail:#帧头帧尾 为 #a:
-            task_flag = data_decoded[1]
-            if task_flag == 'A':
-                if first_recieve_flag ==1:#区分第一次和后面的
-                    rect_point_num = 0
-                    first_recieve_flag =0
-                else:
-                    rect_point_num += 1
-                    print("rect_point_num",rect_point_num)
-                    print("task_flag:",task_flag)
-                    if rect_points is not None and red_blobs is not None:
-                        send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
-                        print(send_data)
-                        uart.write(send_data)
+    if data and rect_points_flag == 0:  
+        if first_recieve_flag ==1:#区分第一次和后面的
+            rect_point_num = 0
+            first_recieve_flag =0
+        else:
+            rect_point_num += 1
+            print("rect_point_num",rect_point_num)
+            print("task_flag:",task_flag)
+            if rect_points is not None and red_blobs is not None:
+                send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+                print(send_data)
+                data = 0
+                uart.write(send_data)
 
     print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
