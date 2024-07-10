@@ -39,7 +39,8 @@ rect_points_flag = 1
 send_data = None
 
 buffer = None
-data = 0
+
+data = ''
 data_decoded  = 0
 rect_point_num = 0
 frame_head = '#'
@@ -52,7 +53,6 @@ baoguang_step = 1500
 sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
 auto_exposure_flag = True
 auto_exposure_first = True
-
 #线段分割函数
 def divide_line_segment(point1, point2, n):
     """
@@ -154,19 +154,57 @@ def now_conditiont(blob, corners):
             return line_num + 1
     return None  # 如果没有找到匹配的顶点，返回 None
 
+def receive_data():
+    global buffer
+    buffer = buffer.lstrip('#')  # 去除缓冲区头部的多余'#'
+    
+    
+    if uart.any():
+        char = uart.read(1).decode()
+        
+        if char == '#':
+            buffer = ""  # 清空缓冲区，准备接收新数据
+        elif char == ';':
+            if buffer:  # 确保有数据才返回
+                data = buffer
+                buffer = ""  # 清空缓冲区，准备接收下一个数据包
+                return data
+        else:
+            buffer += char  # 将字符添加到缓冲区
+        
+    else:
+        # 如果没有数据，可以适当等待，避免CPU空转
+        time.sleep_ms(1)
 
+def receive_data():
+    global buffer
+    buffer = buffer.lstrip('#')  # 去除缓冲区头部的多余'#'
+    
+    
+    if uart.any():
+        char = uart.read(1).decode()
+        
+        if char == '#':
+            buffer = ""  # 清空缓冲区，准备接收新数据
+        elif char == ';':
+            if buffer:  # 确保有数据才返回
+                data = buffer
+                buffer = ""  # 清空缓冲区，准备接收下一个数据包
+                return data
+        else:
+            buffer += char  # 将字符添加到缓冲区
+        
+    else:
+        # 如果没有数据，可以适当等待，避免CPU空转
+        time.sleep_ms(1)
 
-while(True):
+buffer = ""  # 初始化全局变量用于存储数据
+
+while True:
+        # Take a picture and return the image.
     clock.tick()                    # Update the FPS clock.
+    
     img = sensor.snapshot()         # Take a picture and return the image.
-    if uart.any():  # 如果有可读数据
-        data = uart.read()  # 读取数据
-        print(data)  # 输出读取到的数据
-    # 计算图像的直方图
-    #uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
-    histogram = img.histogram()
-    histogram_statistics = histogram.get_statistics()
-    red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=5)
     #识别色块
     if red_blobs:
         red_blob = find_max_red_blobs(red_blobs,img)
@@ -226,23 +264,25 @@ while(True):
                 print("亮度增大")
             else:
                 auto_exposure_first = False
-    #print("调节已结束")
-    
+    print("调节已结束")
+    data = receive_data()
+
     if data=='B' and rect_points_flag == 0:
         still_send_flag = 1
         
     elif data == 'A' and rect_points_flag == 0:
         rect_point_num += 1
         data = 0
+        print("111312312222221122222222222222222222222222222222222222222222222222222222222222")
     else:
-        pass
-        #print('等待接收数据')
-
+        print('等待接收数据')
     if still_send_flag ==1:    #持续发送坐标
+        print("still_send_flag",still_send_flag)
         if rect_points is not None and red_blobs is not None:
-            send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+            #send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
             print(send_data)
-            uart.write(send_data)
+            print('1111111111')
+            #uart.write(send_data)
        
     #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
