@@ -1,3 +1,9 @@
+'''
+
+使用之前先修改串口部分的数据
+
+'''
+
 import sensor, image, time, pyb,math,lcd
 from pyb import UART, LED,Pin, Timer
 # 50kHz pin6 timer2 channel1
