@@ -53,6 +53,38 @@ baoguang_step = 1500
 sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
 auto_exposure_flag = True
 auto_exposure_first = True
+
+rect_points_transform = None
+
+def scale_rect_points(rect_points, scale_factor):
+    """
+    将矩形框上的坐标点列表按给定的比例因子进行缩放，并保持矩形的中心点不变。
+
+    参数:
+    rect_points (list): 包含矩形框上坐标点的列表，例如[(x1, y1), (x2, y2), ..., (xn, yn)]
+    scale_factor (float): 缩放比例因子
+
+    返回:
+    list: 包含缩放后坐标点的列表，例如[(x1', y1'), (x2', y2'), ..., (xn', yn')]
+    """
+    # 计算矩形的中心点
+    x_coords = [point[0] for point in rect_points]
+    y_coords = [point[1] for point in rect_points]
+    center_x = sum(x_coords) / len(rect_points)
+    center_y = sum(y_coords) / len(rect_points)
+
+    # 缩放后的坐标点
+    scaled_points = []
+    for point in rect_points:
+        x = center_x + (point[0] - center_x) / scale_factor
+        y = center_y + (point[1] - center_y) / scale_factor
+        # 保留一位小数
+        x = round(x, 1)
+        y = round(y, 1)
+        scaled_points.append((x, y))
+
+    return scaled_points
+
 #线段分割函数
 def divide_line_segment(point1, point2, n):
     """
@@ -229,11 +261,13 @@ while True:
     #识别一次矩形
     if rect_points_flag == 1:
         if rect:
-            rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+            rect_points = divide_polygon_segments(corners, 4)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+            rect_points_transform =  scale_rect_points(rect_points,1.03)
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
     print("rect_points",rect_points)
+    print("rect_points_transform",rect_points_transform)
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     #print(histogram_statistics)
@@ -270,7 +304,7 @@ while True:
 
     if data=='B' and rect_points_flag == 0:
         still_send_flag = 1
-        
+        LED(3).on()
     elif data == 'A' and rect_points_flag == 0:
         rect_point_num += 1
         data = 'B'
@@ -280,15 +314,16 @@ while True:
     if still_send_flag ==1:    #持续发送坐标
         print("still_send_flag",still_send_flag)
         if rect_points is not None and red_blobs is not None:
-            #if  rect_point_num<4:
-            send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(float(red_blob.cx()))+'y'+str(float(red_blob.cy())      )+';'
-            print(send_data)
-            print('3333333333333333333333333333333333333333333333')
-            uart.write(send_data)
-       
+            if  rect_point_num<len(rect_points_transform):
+                send_data = '#0'+'X'+str(rect_points_transform[rect_point_num][0])+'Y'+str(rect_points_transform[rect_point_num][1])+'x'+str(float(red_blob.cx()))+'y'+str(float(red_blob.cy()))+';'
+                print(send_data)
+                print('3333333333333333333333333333333333333333333333')
+                uart.write(send_data)
+            else:
+                rect_point_num = 0
     #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
     print(clock.fps())
 
-#方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率
+#方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率     
