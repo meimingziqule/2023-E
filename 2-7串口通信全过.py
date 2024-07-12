@@ -4,17 +4,19 @@ from pyb import UART, LED,Pin, Timer
 #light = Timer(2, freq=50000).channel(1, Timer.PWM, pin=Pin("P6"))
 #light.pulse_width_percent(50) # 控制亮度 0~100
 #11
-red_thresholds = (0, 100, 8, 89, -3, 65)# 通用红色阈值
+red_thresholds = (0, 100, 11, 91, -20, 54)# 通用红色阈值
 green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([370,176,335,346]) #roi 300,0,200,600
+sensor.set_windowing([370,176,335,335]) #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
 sensor.set_auto_gain(False)
 sensor.set_auto_whitebal(False)
+sensor.set_contrast(2)
+sensor.set_gainceiling(8)
 #sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
 still_send_flag = 0
 clock = time.clock()
@@ -22,6 +24,10 @@ red_blobs = 0
 lcd.init(freq=15000000)
 uart = UART(3,115200)
 uart.init(115200, bits=8, parity=None, stop=1 )
+black_blob = None
+black_thresholds = (0, 15, -5, 82, 1, 126)
+black_roi = None
+get_black_roi_flag = 1
 
 start_flag = 1
 line_num  = 0
@@ -48,13 +54,32 @@ frame_tail = ';'
 first_recieve_flag = 1
 
 l_value= 60
-baoguang = 20000
+baoguang = 30000
 baoguang_step = 1500
 sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
 auto_exposure_flag = True
 auto_exposure_first = True
 
 rect_points_transform = None
+
+def remove_duplicates_preserve_order(input_list):
+    """
+    去除列表中的重复元素，并返回一个去重后的列表，保留原始顺序。
+
+    参数:
+    input_list (list): 输入的列表，可能包含重复元素。
+
+    返回:
+    list: 去重后的列表，保留原始顺序。
+    """
+    seen = set()
+    unique_list = []
+    for item in input_list:
+        if item not in seen:
+            seen.add(item)
+            unique_list.append(item)
+    return unique_list
+
 
 def scale_rect_points(rect_points, scale_factor):
     """
@@ -244,6 +269,18 @@ while True:
         print('找到了色块')
         print("red_blobs,X:%s,Y:%s"%(red_blob.cx(),red_blob.cy()))
         img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))
+    #识别黑色色块，获取roi区域
+    if get_black_roi_flag == 1:
+        black_blobs = img.find_blobs([black_thresholds],x_stride=100, y_stride=100, pixels_threshold=5000)
+        if black_blobs:
+            black_blob = find_max_red_blobs(black_blobs,img)#借用一下红色的函数
+            print('找到了黑色色块')
+            print("black_blobs,X:%s,Y:%s"%(black_blob.cx(),black_blob.cy()))
+            
+            black_roi= (black_blob.rect()[0]-5,black_blob.rect()[1]-5,black_blob.rect()[2]+10,black_blob.rect()[3]+10)
+            img.draw_rectangle(black_roi, color = (255, 255, 255))
+            if black_roi is not None:
+                  get_black_roi_flag = 0
     #识别矩形
     if rect_flag ==1:
         rect = img.find_rects(threshold = 17000)
@@ -261,8 +298,10 @@ while True:
     #识别一次矩形
     if rect_points_flag == 1:
         if rect:
-            rect_points = divide_polygon_segments(corners, 4)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
-            rect_points_transform =  scale_rect_points(rect_points,1.03)
+            rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+            rect_points_transform =  scale_rect_points(rect_points,1.06)#缩放
+            rect_points_transform = remove_duplicates_preserve_order(rect_points_transform)#去重
+            #rect_points_transform[4]  =(rect_points_transform[4][0]-3,rect_points_transform[4][1]+7)
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
@@ -271,35 +310,7 @@ while True:
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     #print(histogram_statistics)
-
-    if auto_exposure_first:
-        for i in range(20):
-            img = sensor.snapshot()
-            # 计算图像的直方图
-            histogram = img.histogram()
-            histogram_statistics = histogram.get_statistics()
-            # 计算图像的直方图
-            histogram = img.histogram()
-            histogram_statistics = histogram.get_statistics()
-            # 提取 mode 值
-            if hasattr(histogram_statistics, "mode"):
-                mode_value = histogram_statistics.mode()  # 调用 mode 方法
-                print("mode 值:", mode_value)
-            else:
-                print("histogram_statistics 对象没有 mode 方法")
-
-            if mode_value > 40:
-                baoguang -= baoguang_step
-                sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
-                print("亮度减小")
-
-            elif mode_value < 30:
-                baoguang += baoguang_step
-                sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
-                print("亮度增大")
-            else:
-                auto_exposure_first = False
-    print("调节已结束")
+    
     data = receive_data()
 
     if data=='B' and rect_points_flag == 0:
@@ -310,7 +321,8 @@ while True:
         data = 'B'
         print("111312312222221122222222222222222222222222222222222222222222222222222222222222")
     else:
-        print('等待接收数据')
+        #print('等待接收数据')
+        pass
     if still_send_flag ==1:    #持续发送坐标
         print("still_send_flag",still_send_flag)
         if rect_points is not None and red_blobs is not None:
