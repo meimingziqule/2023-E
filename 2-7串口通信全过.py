@@ -323,6 +323,7 @@ while True:
     else:
         #print('等待接收数据')
         pass
+    
     if still_send_flag ==1:    #持续发送坐标
         print("still_send_flag",still_send_flag)
         if rect_points is not None and red_blobs is not None:
@@ -333,6 +334,8 @@ while True:
                 uart.write(send_data)
             else:
                 rect_point_num = 0
+    if rect_points_transform is not None  :            
+        img.draw_cross(int(rect_points_transform[rect_point_num][0]),int(rect_points_transform[rect_point_num][1]))            
     #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
