@@ -9,7 +9,7 @@ green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.SVGA)   # Set frame size tov SVGA(800x600)
-sensor.set_windowing([370,176,335,335]) #roi 300,0,200,600
+sensor.set_windowing([417,178,334,340]) #roi 300,0,200,600
 sensor.set_hmirror(True)
 sensor.set_vflip(True)
 sensor.skip_frames(time = 2000)
@@ -17,7 +17,7 @@ sensor.set_auto_gain(False)
 sensor.set_auto_whitebal(False)
 sensor.set_contrast(2)
 sensor.set_gainceiling(8)
-#sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
+sensor.set_auto_exposure(False,35000)#设置感光度  这里至关重要
 still_send_flag = 0
 clock = time.clock()
 red_blobs = 0
@@ -269,6 +269,8 @@ while True:
         print('找到了色块')
         print("red_blobs,X:%s,Y:%s"%(red_blob.cx(),red_blob.cy()))
         img.draw_rectangle(red_blob.rect(), color = (255, 255, 255))
+        LED(2).on()
+        LED(2).off()
     #识别黑色色块，获取roi区域
     if get_black_roi_flag == 1:
         black_blobs = img.find_blobs([black_thresholds],x_stride=100, y_stride=100, pixels_threshold=5000)
@@ -283,7 +285,7 @@ while True:
                   get_black_roi_flag = 0
     #识别矩形
     if rect_flag ==1:
-        rect = img.find_rects(threshold = 17000)
+        rect = img.find_rects(threshold = 40000)
         if rect:
             corners = find_rect_corners(rect,img)#找顶点[(x1,y1),................]
             if corners:
@@ -299,8 +301,8 @@ while True:
     if rect_points_flag == 1:
         if rect:
             #rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
-            #rect_points_transform =  scale_rect_points(rect_points,1.06)#缩放
-            rect_points_transform = corners
+            #rect_points_transform =  scale_rect_points(rect_points,1.07)#缩放
+            rect_points_transform = scale_rect_points(corners,1.08)
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
@@ -334,7 +336,8 @@ while True:
             else:
                 rect_point_num = 0
     if rect_points_transform is not None  :            
-        img.draw_cross(int(rect_points_transform[rect_point_num][0]),int(rect_points_transform[rect_point_num][1]))            
+        #img.draw_cross(int(rect_points_transform[rect_point_num][0]),int(rect_points_transform[rect_point_num][1]))   
+        pass         
     #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
     img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
