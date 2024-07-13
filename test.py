@@ -3,7 +3,7 @@ from pyb import UART, LED,Pin, Timer
 # 50kHz pin6 timer2 channel1
 #light = Timer(2, freq=50000).channel(1, Timer.PWM, pin=Pin("P6"))
 #light.pulse_width_percent(50) # 控制亮度 0~100
-
+#11
 red_thresholds = (0, 100, 8, 89, -3, 65)# 通用红色阈值
 green_thresholds = (0, 100, 5, 127, -61, 122)# 通用绿色阈值   待修改
 sensor.reset()
@@ -39,7 +39,8 @@ rect_points_flag = 1
 send_data = None
 
 buffer = None
-data = 0
+
+data = ''
 data_decoded  = 0
 rect_point_num = 0
 frame_head = '#'
@@ -53,20 +54,33 @@ sensor.set_auto_exposure(False,baoguang)#设置感光度  这里至关重要
 auto_exposure_flag = True
 auto_exposure_first = True
 
-def receive_data():
-    buffer = ""
-    while True:
-        if uart.any():
-            char = uart.read(1).decode()
-            if char == '#':
-                buffer = ""  # 清空缓冲区，准备接收新数据
-            elif char == ';':
-                return buffer  # 返回接收到的数据
-            else:
-                buffer += char  # 将字符添加到缓冲区
-        else:
-            time.sleep_ms(10)  # 如果没有数据，短暂等待
+rect_points_transform = None
 
+def scale_rect_points(rect_points, scale_factor):
+    """
+    将矩形框上的坐标点列表按给定的比例因子进行缩放，并保持矩形的中心点不变。
+
+    参数:
+    rect_points (list): 包含矩形框上坐标点的列表，例如[(x1, y1), (x2, y2), ..., (xn, yn)]
+    scale_factor (float): 缩放比例因子
+
+    返回:
+    list: 包含缩放后坐标点的列表，例如[(x1', y1'), (x2', y2'), ..., (xn', yn')]
+    """
+    # 计算矩形的中心点
+    x_coords = [point[0] for point in rect_points]
+    y_coords = [point[1] for point in rect_points]
+    center_x = sum(x_coords) / len(rect_points)
+    center_y = sum(y_coords) / len(rect_points)
+
+    # 缩放后的坐标点
+    scaled_points = []
+    for point in rect_points:
+        x = float(int(center_x + (point[0] - center_x) / scale_factor))
+        y = float(int(center_y + (point[1] - center_y) / scale_factor))
+        scaled_points.append((x, y))
+
+    return scaled_points
 
 
 #线段分割函数
@@ -170,15 +184,57 @@ def now_conditiont(blob, corners):
             return line_num + 1
     return None  # 如果没有找到匹配的顶点，返回 None
 
+def receive_data():
+    global buffer
+    buffer = buffer.lstrip('#')  # 去除缓冲区头部的多余'#'
+    
+    
+    if uart.any():
+        char = uart.read(1).decode()
+        
+        if char == '#':
+            buffer = ""  # 清空缓冲区，准备接收新数据
+        elif char == ';':
+            if buffer:  # 确保有数据才返回
+                data = buffer
+                buffer = ""  # 清空缓冲区，准备接收下一个数据包
+                return data
+        else:
+            buffer += char  # 将字符添加到缓冲区
+        
+    else:
+        # 如果没有数据，可以适当等待，避免CPU空转
+        time.sleep_ms(1)
 
+def receive_data():
+    global buffer
+    buffer = buffer.lstrip('#')  # 去除缓冲区头部的多余'#'
+    
+    
+    if uart.any():
+        char = uart.read(1).decode()
+        
+        if char == '#':
+            buffer = ""  # 清空缓冲区，准备接收新数据
+        elif char == ';':
+            if buffer:  # 确保有数据才返回
+                data = buffer
+                buffer = ""  # 清空缓冲区，准备接收下一个数据包
+                return data
+        else:
+            buffer += char  # 将字符添加到缓冲区
+        
+    else:
+        # 如果没有数据，可以适当等待，避免CPU空转
+        time.sleep_ms(1)
 
-while(True):
+buffer = ""  # 初始化全局变量用于存储数据
+
+while True:
+        # Take a picture and return the image.
     clock.tick()                    # Update the FPS clock.
+    
     img = sensor.snapshot()         # Take a picture and return the image.
-    # 计算图像的直方图
-    #uart.write('#0'+'X'+'1'+'Y'+'2'+'x'+'3'+'y'+'4'+';')
-    histogram = img.histogram()
-    histogram_statistics = histogram.get_statistics()
     red_blobs = img.find_blobs([red_thresholds],x_stride=1, y_stride=1, pixels_threshold=5)
     #识别色块
     if red_blobs:
@@ -204,10 +260,11 @@ while(True):
     if rect_points_flag == 1:
         if rect:
             rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
+            rect_points_transform =  scale_rect_points(rect_points,1.5)
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
-
+    print("rect_points",rect_points)
     histogram = img.histogram()
     histogram_statistics = histogram.get_statistics()
     #print(histogram_statistics)
@@ -241,26 +298,28 @@ while(True):
                 auto_exposure_first = False
     print("调节已结束")
     data = receive_data()
+
     if data=='B' and rect_points_flag == 0:
         still_send_flag = 1
-        
+        LED(3).on()
     elif data == 'A' and rect_points_flag == 0:
         rect_point_num += 1
-        data = 0
+        data = 'B'
+        print("111312312222221122222222222222222222222222222222222222222222222222222222222222")
     else:
         print('等待接收数据')
-
     if still_send_flag ==1:    #持续发送坐标
+        print("still_send_flag",still_send_flag)
         if rect_points is not None and red_blobs is not None:
-            send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(red_blob.cx())+'y'+str(red_blob.cy())+';'
+            #if  rect_point_num<4:
+            send_data = '#0'+'X'+str(rect_points[rect_point_num][0])+'Y'+str(rect_points[rect_point_num][1])+'x'+str(float(red_blob.cx()))+'y'+str(float(red_blob.cy())      )+';'
             print(send_data)
+            print('3333333333333333333333333333333333333333333333')
             uart.write(send_data)
        
-    print("一次任务结束")
+    #print("一次任务结束")
     fps = 'fps:'+str(clock.fps())
-    #img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
+    img.draw_string(0, 0, fps, lab=(255, 0, 0), scale=2)
     print(clock.fps())
 
 #方案二 ： 当激光进入顶点范围直接发送前后顶点的error_x,error_y——————————>减少代码执行量，提高效率
-
-

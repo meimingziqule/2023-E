@@ -301,7 +301,6 @@ while True:
             rect_points = divide_polygon_segments(corners, 2)#如[(0.0, 0.0), (10.0, 1.2), (20.0, 2.4), (30.0, 3.6), (40.0, 4.8), (50.0, 6.0), (50.0, 6.0), (48.0, 10.8)]
             rect_points_transform =  scale_rect_points(rect_points,1.06)#缩放
             rect_points_transform = remove_duplicates_preserve_order(rect_points_transform)#去重
-            #rect_points_transform[4]  =(rect_points_transform[4][0]-3,rect_points_transform[4][1]+7)
             rect_points_flag = 0 #只计算一次
             print("rect_point:",rect_points)
     #如果接收到了坐标发送信号且矩形识别完成
